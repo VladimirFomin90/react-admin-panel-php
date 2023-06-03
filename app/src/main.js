@@ -1,39 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import Editor from "./components/editor";
+import Editor from './components/editor';
 
-ReactDOM.render(
-    <>
+const root = ReactDOM.createRoot(document.getElementById('root'));
+
+root.render(
+    <React.StrictMode>
         <Editor />
-    </>,
-    document.getElementById('root'),
+    </React.StrictMode>,
 );
-
-// function getPageList() {
-//     $('h1').remove();
-//     $.get(
-//         './api',
-//         (data) => {
-//             data.forEach((file) => {
-//                 $('body').append(`<h1>${file}</h1>`);
-//             });
-//         },
-//         'JSON',
-//     );
-// }
-
-// getPageList();
-
-// $('button').on('click', function () {
-//     $.post(
-//         './api/createNewPage.php',
-//         {
-//             name: $('input').val(),
-//         },
-//         () => {
-//             getPageList();
-//         },
-//     ).fail(() => {
-//         alert('Страница существует');
-//     });
-// });
