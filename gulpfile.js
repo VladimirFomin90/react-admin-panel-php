@@ -1,6 +1,6 @@
 const gulp = require('gulp');
 const webpack = require('webpack-stream');
-const sass = require('gulp-sass');
+const sass = require('gulp-sass')(require('sass'));
 
 const basePath =
     '/home/vladimir/Documents/devilbox/data/www/phpAdminWithReact/htdocs/admin';
