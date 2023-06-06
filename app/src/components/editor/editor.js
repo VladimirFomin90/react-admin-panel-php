@@ -27,9 +27,29 @@ export default function Editor() {
     }
 
     function open(page) {
+        // setCurrentPage(`../${page}?rnd=${Math.random()}`);
         setCurrentPage(`../${page}`);
 
-        const body = iframe.contentDocument.body;
+        axios
+            .get(`../${page}`)
+            .then((res) => parseStringToDom(res.data))
+            .then(wrapTextNodes)
+            .then(serializeDOMToString)
+            .then((html) => axios.post('./api/saveTempPage.php', { html }))
+            .then(() => iframe.load('../temp.html'));
+
+        // iframe.load(currentPage, () => {
+
+        // });
+    }
+
+    function parseStringToDom(str) {
+        const parser = new DOMParser();
+        return parser.parseFromString(str, 'text/html');
+    }
+
+    function wrapTextNodes(dom) {
+        const body = dom.body;
         const textNodes = [];
 
         function recursy(element) {
@@ -44,22 +64,29 @@ export default function Editor() {
                 }
             });
         }
+
         recursy(body);
 
         textNodes.forEach((node) => {
-            const wrapper = iframe.contentDocument.createElement('text-editor');
+            const wrapper = dom.createElement('text-editor');
             node.parentNode.replaceChild(wrapper, node);
             wrapper.appendChild(node);
             wrapper.contentEditable = true;
         });
+
+        return dom;
+    }
+
+    function serializeDOMToString(dom) {
+        const serializer = new XMLSerializer();
+        return serializer.serializeToString(dom);
     }
 
     function createNewPage() {
         axios
             .post('./api/createNewPage.php', { name: _state.newPageName })
             .then(loadPageList())
-            .catch(() => alert('Страница такая уже существует!'))
-            .catch(alert);
+            .catch(() => alert('Страница такая уже существует!'));
     }
 
     function deletePage(page) {
@@ -82,7 +109,7 @@ export default function Editor() {
     // });
 
     return (
-        <iframe src={`../${currentPage}`} frameBorder={0}></iframe>
+        <iframe src={currentPage} frameBorder={0}></iframe>
         //     <>
         //         <input
         //             type="text"
