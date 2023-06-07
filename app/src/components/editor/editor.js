@@ -6,6 +6,7 @@ export default function Editor() {
     let iframe;
     const [_state, setState] = useState({ pageList: [], newPageName: '' });
     const [currentPage, setCurrentPage] = useState('index.html');
+    const [virtualDom, setVirtualDom] = useState({});
 
     const _setState = (data) => setState((state) => ({ ...state, ...data }));
 
@@ -28,19 +29,47 @@ export default function Editor() {
 
     function open(page) {
         // setCurrentPage(`../${page}?rnd=${Math.random()}`);
-        setCurrentPage(`../${page}`);
+        setCurrentPage(page);
 
         axios
-            .get(`../${page}`)
+            .get(`../${page}?rnd=${Math.random()}`)
             .then((res) => parseStringToDom(res.data))
             .then(wrapTextNodes)
+            .then((dom) => {
+                setVirtualDom(dom);
+                // console.log(virtualDom);
+                return dom;
+            })
             .then(serializeDOMToString)
             .then((html) => axios.post('./api/saveTempPage.php', { html }))
-            .then(() => iframe.load('../temp.html'));
+            .then(() => iframe.load('../temp.html'))
+            .then(() => {
+                enableEditing();
+            });
+    }
 
-        // iframe.load(currentPage, () => {
+    function save() {
+        const newDom = virtualDom.cloneNode(virtualDom);
+        unwrapTextNodes(newDom);
+        const html = serializeDOMToString(newDom);
+        axios.post('./api/savePage.php', { pageName: currentPage, html });
+    }
 
-        // });
+    function enableEditing() {
+        iframe.contentDocument.body
+            .querySelectorAll('text-editor')
+            .forEach((element) => {
+                element.contentEditable = true;
+                element.addEventListener('input', () => {
+                    onTextEdit(element);
+                });
+            });
+    }
+
+    function onTextEdit(element) {
+        const id = element.getAttribute('nodeid');
+        virtualDom.body.querySelector(`[nodeid]="${id}"`).innerHTML =
+            element.innerHTML;
     }
 
     function parseStringToDom(str) {
@@ -67,14 +96,20 @@ export default function Editor() {
 
         recursy(body);
 
-        textNodes.forEach((node) => {
+        textNodes.forEach((node, i) => {
             const wrapper = dom.createElement('text-editor');
             node.parentNode.replaceChild(wrapper, node);
             wrapper.appendChild(node);
-            wrapper.contentEditable = true;
+            wrapper.setAttribute('nodeid', i);
         });
 
         return dom;
+    }
+
+    function unwrapTextNodes(dom) {
+        dom.body.querySelectorAll('text-editor').forEach((element) => {
+            element.parentNode.replaceChild(element.firstChild, element);
+        });
     }
 
     function serializeDOMToString(dom) {
@@ -109,7 +144,10 @@ export default function Editor() {
     // });
 
     return (
-        <iframe src={currentPage} frameBorder={0}></iframe>
+        <>
+            <button onClick={save}>save</button>
+            <iframe src={currentPage} frameBorder={0}></iframe>
+        </>
         //     <>
         //         <input
         //             type="text"
