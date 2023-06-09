@@ -3,6 +3,10 @@ import React, { useEffect, useState } from 'react';
 import '../../helpers/iframeLoader.js';
 import DOMHelper from '../../helpers/domHelper.js';
 import EditorText from '../editor-text';
+import UIkit from 'uikit';
+import Spinner from '../spinner';
+import ConfirmModal from '../confirm-modal';
+import ChooseModal from '../choose-modal';
 
 export default function Editor() {
     let iframe;
@@ -10,6 +14,7 @@ export default function Editor() {
     const [_state, setState] = useState({ pageList: [], newPageName: '' });
     const [currentPage, setCurrentPage] = useState('index.html');
     const [_virtualDom, setVirtualDom] = useState();
+    const [load, setLoad] = useState(true);
 
     const _setState = (data) => setState((state) => ({ ...state, ...data }));
 
@@ -24,13 +29,17 @@ export default function Editor() {
             .catch(alert);
     }
 
-    function init(page) {
+    function init(e, page) {
+        // if (e) {
+        //     e.preventDefault();
+        // }
+        isLoading();
         iframe = document.querySelector('iframe');
-        open(page);
+        open(page, isLoaded);
         loadPageList();
     }
 
-    function open(page) {
+    function open(page, cb) {
         setCurrentPage(page);
 
         axios
@@ -46,14 +55,21 @@ export default function Editor() {
             .then((html) => axios.post('./api/saveTempPage.php', { html }))
             .then(() => iframe.load('../temp.html'))
             .then(enableEditing)
-            .then(() => injectStyles());
+            .then(() => injectStyles())
+            .then(cb);
     }
 
-    function save() {
+    function save(OnSuccess, OnDanger) {
+        isLoading();
         const newDom = _virtualDom.cloneNode(_virtualDom);
         DOMHelper.unwrapTextNodes(newDom);
         const html = DOMHelper.serializeDOMToString(newDom);
-        axios.post('./api/savePage.php', { pageName: currentPage, html });
+        setLoad(true);
+        axios
+            .post('./api/savePage.php', { pageName: currentPage, html })
+            .then(OnSuccess)
+            .catch(OnDanger)
+            .finally(isLoaded);
     }
 
     function enableEditing() {
@@ -99,30 +115,47 @@ export default function Editor() {
             .catch(() => alert('Страница была уже удалена!'));
     }
 
-    // const { pageList } = _state;
-    // const pages = pageList.map((page, i) => {
-    //     return (
-    //         <h1 key={i}>
-    //             {page}
-    //             <a href="#" onClick={() => deletePage(page)}>
-    //                 (x)
-    //             </a>
-    //         </h1>
-    //     );
-    // });
+    const isLoading = () => {
+        setLoad(true);
+    };
+
+    const isLoaded = () => {
+        setLoad(false);
+    };
+
+    const modal = true;
+    let spinner;
+
+    load ? (spinner = <Spinner active />) : (spinner = <Spinner />);
 
     return (
         <>
-            <button onClick={save}>save</button>
-            <iframe src={currentPage} frameBorder={0}></iframe>
+            <iframe src={currentPage}></iframe>
+
+            {spinner}
+
+            <div className="panel">
+                <button
+                    className="uk-button uk-button-primary uk-margin-small-right"
+                    uk-toggle="target: #modal-open"
+                >
+                    Открыть
+                </button>
+                <button
+                    className="uk-button uk-button-primary"
+                    uk-toggle="target: #modal-save"
+                >
+                    Опубликовать
+                </button>
+            </div>
+
+            <ConfirmModal modal={modal} target={'modal-save'} method={save} />
+            {/* <ChooseModal
+                modal={modal}
+                target={'modal-open'}
+                data={pageList}
+                redirect={init}
+            /> */}
         </>
-        //     <>
-        //         <input
-        //             type="text"
-        //             onChange={(e) => _setState({ newPageName: e.target.value })}
-        //         />
-        //         <button onClick={createNewPage}>Создать страницу</button>
-        //         {pages}
-        //     </>
     );
 }
